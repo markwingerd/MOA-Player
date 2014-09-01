@@ -1,0 +1,17 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:moaplayer="http://schemas.android.com/apk/res-auto" >
+    
+    <item
+	    android:id="@+id/action_shuffle"
+	    android:icon="@drawable/rand"
+	    android:orderInCategory="1"
+	    moaplayer:showAsAction="always"
+	    android:title="@string/action_shuffle"/>
+	<item
+		android:id="@+id/action_end"
+		android:icon="@drawable/end"
+		android:orderInCategory="2"
+		moaplayer:showAsAction="always"
+		android:title="@string/action_end"/>
+
+</menu>
