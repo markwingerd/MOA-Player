@@ -6,32 +6,36 @@
 
 package us.reimus.moaplayer;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 
 import us.reimus.moaplayer.MusicService.MusicBinder;
+import android.app.Activity;
 import android.content.ComponentName;
-import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.IBinder;
-import android.support.v7.app.ActionBarActivity;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.ListView;
 import android.widget.MediaController.MediaPlayerControl;
-//import android.view.MenuItem;
+//import android.support.v7.app.ActionBarActivity;
 
-public class MainActivity extends ActionBarActivity implements MediaPlayerControl {
-	private ArrayList<Song> songList;	// Used to store songs.
-	private ListView songView;			// Used to display song.
+public class MainActivity extends Activity implements MediaPlayerControl {
+	private ArrayList<Song> songList;		 // Used to store songs.
+	private ArrayList<String> directoryList; // Used to store directories.
+	private ListView songView;				 // Used to display song.
+	private ListView directoryView;			 // Used to display directories.
 	private MusicService musicSrv;
 	private Intent playIntent;
 	private boolean musicBound = false;
@@ -44,17 +48,27 @@ public class MainActivity extends ActionBarActivity implements MediaPlayerContro
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_main);
 		
+		// Get, sort, and display songs.
 		songView = (ListView)findViewById(R.id.song_list);
 		songList = new ArrayList<Song>();
 		getSongList();
-		
 		Collections.sort(songList, new Comparator<Song>() {
 			public int compare(Song a, Song b){
 			    return a.getTitle().compareTo(b.getTitle());
 			  }
 		});
+		
+		// Setup the ability to play songs.
 		SongAdapter songAdt = new SongAdapter(this, songList);
 		songView.setAdapter(songAdt);
+		
+		// Setup a listview for the directories. Get the directories. Setup the handling of directories.
+		directoryView = (ListView)findViewById(R.id.directory_list);
+		directoryView.setChoiceMode(ListView.CHOICE_MODE_SINGLE);
+		directoryList = new ArrayList<String>();
+		getDirectoryList();
+		DirectoryAdapter directoryAdt = new DirectoryAdapter(this, directoryList);
+		directoryView.setAdapter(directoryAdt);
 		
 		setController();
 	}
@@ -74,11 +88,9 @@ public class MainActivity extends ActionBarActivity implements MediaPlayerContro
 		@Override
 		public void onServiceConnected(ComponentName name, IBinder service) {
 			MusicBinder binder = (MusicBinder)service;
-			// Get service
-			musicSrv = binder.getService();
-			// Pass the list.
-			musicSrv.setList(songList);
-			musicBound = true;
+			musicSrv = binder.getService(); // Get service
+			musicSrv.setList(songList); // Pass the list.
+			musicBound = true; 
 		}
 		
 		@Override
@@ -110,6 +122,7 @@ public class MainActivity extends ActionBarActivity implements MediaPlayerContro
 			System.exit(0);
 			break;
 		}
+		
 		return super.onOptionsItemSelected(item);
 	}
 	
@@ -121,12 +134,11 @@ public class MainActivity extends ActionBarActivity implements MediaPlayerContro
 	}
 	
 	public void getSongList() {
+		ArrayList<String> fileList = new ArrayList<String>();
 		// Retrieve song info.
-		
 		// Queries the Music Files.
-		ContentResolver musicResolver = getContentResolver();
 		Uri musicUri = android.provider.MediaStore.Audio.Media.EXTERNAL_CONTENT_URI;
-		Cursor musicCursor = musicResolver.query(musicUri, null, null, null, null);
+		Cursor musicCursor = getMusicCursor(this, null, musicUri, "Music");
 		
 		// Iterate through music.
 		if (musicCursor!=null && musicCursor.moveToFirst()) {
@@ -134,13 +146,66 @@ public class MainActivity extends ActionBarActivity implements MediaPlayerContro
 			int titleColumn = musicCursor.getColumnIndex(android.provider.MediaStore.Audio.Media.TITLE);
 			int idColumn = musicCursor.getColumnIndex(android.provider.MediaStore.Audio.Media._ID);
 			int artistColumn = musicCursor.getColumnIndex(android.provider.MediaStore.Audio.Media.ARTIST);
+			
+			// Get ArrayList of file locations
+			fileList = getRealPathFromURI(this, musicUri);
+			
 			// Add songs to list.
+			int i = 0;
 			do {
 				long thisId = musicCursor.getLong(idColumn);
 				String thisTitle = musicCursor.getString(titleColumn);
 				String thisArtist = musicCursor.getString(artistColumn);
-				songList.add(new Song(thisId, thisTitle, thisArtist));
+				String thisFile = fileList.get(i);
+				songList.add(new Song(thisId, thisTitle, thisArtist, thisFile));
+				i++;
 			} while (musicCursor.moveToNext());
+		}
+
+	}
+	
+	private Cursor getMusicCursor(Context context, String[] projection, Uri contentUri, String searchDir) {
+		Cursor cursor = null;
+		String searchString = android.provider.MediaStore.Audio.Media.DATA + " LIKE '%" + searchDir + "%'";
+		
+		try {
+			cursor = context.getContentResolver().query(
+					contentUri,
+					projection,
+					searchString,
+					null,			// I cannot get searchArgs to work. App crashes when String[] used.
+					null);
+
+			return cursor;
+		} finally {
+			if (cursor != null) {
+				//cursor.close();
+			}
+		}
+	}
+	
+	// From: http://stackoverflow.com/questions/3401579/get-filename-and-path-from-uri-from-mediastore
+	private ArrayList<String> getRealPathFromURI(Context context, Uri contentUri) {
+		String[] projection = { android.provider.MediaStore.Audio.Media.DATA };
+		Cursor cursor = getMusicCursor(context, projection, contentUri, "Music");
+		ArrayList<String> array = new ArrayList<String>();
+		int column_index = cursor.getColumnIndexOrThrow(android.provider.MediaStore.Audio.Media.DATA);
+			
+		do {
+			array.add(cursor.getString(column_index));
+		} while (cursor.moveToNext());
+		
+		return array;
+	}
+	
+	public void getDirectoryList() {
+		File sdcard = Environment.getExternalStorageDirectory();
+		File f = new File(sdcard, "Music/");
+		File[] files = f.listFiles();
+		for (File inFile : files) {
+			if (inFile.isDirectory()) {
+				directoryList.add(inFile.getName());
+			}
 		}
 	}
 	
@@ -151,7 +216,15 @@ public class MainActivity extends ActionBarActivity implements MediaPlayerContro
 			setController();
 			playbackPaused = false;
 		}
-		controller.show(0);
+		controller.show();
+	}
+	
+	public void directoryPicked(View view) {
+		int selectedDirectory = Integer.parseInt(view.getTag().toString());
+
+		directoryView.requestFocusFromTouch();
+		directoryView.setSelection(selectedDirectory);
+		musicSrv.setDirectory(directoryList.get(selectedDirectory));
 	}
 
 	@Override
@@ -249,7 +322,7 @@ public class MainActivity extends ActionBarActivity implements MediaPlayerContro
 			setController();
 			playbackPaused = false;
 		}
-		controller.show(0);
+		controller.show();
 	}
 	 
 	private void playPrev() {
@@ -258,7 +331,7 @@ public class MainActivity extends ActionBarActivity implements MediaPlayerContro
 			setController();
 			playbackPaused = false;
 		}
-		controller.show(0);
+		controller.show();
 	}
 	
 	@Override

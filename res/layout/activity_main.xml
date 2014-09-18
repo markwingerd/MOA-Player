@@ -3,13 +3,28 @@
     android:layout_width="fill_parent"
     android:layout_height="fill_parent"
     android:orientation="vertical"
-    android:background="#FFB0C4DE"
     tools:context="us.reimus.moaplayer.MainActivity" >
 
     <ListView
-	    android:id="@+id/song_list"
+        android:id="@+id/song_list"
+        android:layout_width="fill_parent"
+        android:layout_height="match_parent"
+        android:layout_weight="3" >
+  	</ListView>
+  	<View
+  	    android:id="@+id/media_controller"
+  	    android:layout_width="fill_parent"
+  	    android:layout_height="90dp"/>
+  	<View
 	    android:layout_width="fill_parent"
-	    android:layout_height="wrap_content" >
+	    android:layout_height="1dp"
+	    android:background="@android:color/darker_gray"/>
+  	<ListView
+        android:id="@+id/directory_list"
+        android:layout_width="fill_parent"
+        android:layout_height="match_parent"
+        android:layout_weight="2"
+        android:listSelector="@drawable/list_selector">
   	</ListView>
 
 </LinearLayout>

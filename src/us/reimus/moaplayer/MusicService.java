@@ -1,7 +1,12 @@
 package us.reimus.moaplayer;
 
+import java.io.File;
 import java.util.ArrayList;
+import java.util.EmptyStackException;
+import java.util.Random;
 
+import android.app.Notification;
+import android.app.PendingIntent;
 import android.app.Service;
 import android.content.ContentUris;
 import android.content.Intent;
@@ -9,12 +14,10 @@ import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Binder;
+import android.os.Environment;
 import android.os.IBinder;
 import android.os.PowerManager;
 import android.util.Log;
-import java.util.Random;
-import android.app.Notification;
-import android.app.PendingIntent;
 
 public class MusicService extends Service implements
 MediaPlayer.OnPreparedListener, MediaPlayer.OnErrorListener,
@@ -27,6 +30,9 @@ MediaPlayer.OnCompletionListener {
 	private static final int NOTIFY_ID=1;
 	private boolean shuffle = false;
 	private Random rand;
+	private Song songToBeMoved = null;
+	private String sdCard = Environment.getExternalStorageDirectory().toString();
+	private String targetDirectory = null;
 	
 	public void onCreate() {
 		// Create the service.
@@ -127,10 +133,65 @@ MediaPlayer.OnCompletionListener {
 		startForeground(NOTIFY_ID, not);
 	}
 	
+	public void setDirectory(String directory) {
+		// Move song to new directory
+		if (songToBeMoved != null) {
+			targetDirectory = directory;
+			/*
+			File sourceLocation = new File (songToBeMoved.getFileLocation());
+			File targetLocation = new File (sdCard + "/Music/" + directory);
+			try {
+				if(sourceLocation.renameTo(targetLocation)) {
+					Log.d("dvp", "Move file sucessful.");
+				} else {
+					Log.d("dvp", "Move file failed.");
+				}
+			} catch (NullPointerException e) {
+				e.printStackTrace();
+			} catch (Exception e) {
+				e.printStackTrace();
+			}*/
+		}
+	}
+	
+	private String getFileExtention(String fileLocation) {
+		int lastIndexOf = fileLocation.lastIndexOf(".");
+		if (lastIndexOf == -1) {
+			throw new EmptyStackException();
+		}
+		return fileLocation.substring(lastIndexOf);
+	}
+	
+	public void moveSong() {
+		if ( (songToBeMoved!=null) && (targetDirectory!=null) ) {
+			File sourceLocation = new File (songToBeMoved.getFileLocation());
+			File targetLocation = new File (sdCard + "/Music/" + targetDirectory + "/" + songToBeMoved.getTitle() + getFileExtention(songToBeMoved.getFileLocation()));
+			Log.d("dvp", "SOURCE: " + sourceLocation);
+			Log.d("dvp", "TARGET: " + targetLocation);
+			try {
+				if(sourceLocation.renameTo(targetLocation)) {
+					Log.d("dvp", "Move file sucessful.");
+				} else {
+					Log.d("dvp", "Move file failed.");
+				}
+			} catch (NullPointerException e) {
+				e.printStackTrace();
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		}
+		// Remove selected directory. BUG
+		targetDirectory = null;
+	}
+	
 	public void playSong() {
+		moveSong();
+		
+		
 		// Play a song.
 		player.reset();
 		Song playSong = songs.get(songPosn); // Get song
+		songToBeMoved = playSong;
 		songTitle = playSong.getTitle();
 		long currSong = playSong.getID();	//Get song Id
 		Uri trackUri = ContentUris.withAppendedId(android.provider.MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, currSong);	// Set URI		
@@ -141,7 +202,6 @@ MediaPlayer.OnCompletionListener {
 		catch (Exception e) {
 			Log.e("MUSIC SERVICE", "Error setting data source", e);
 		}
-		
 		player.prepareAsync();
 	}
 	
@@ -180,6 +240,7 @@ MediaPlayer.OnCompletionListener {
 	}
 	
 	public void playNext() {
+
 		if (shuffle) {
 			int newSong = songPosn;
 			while (newSong == songPosn) {

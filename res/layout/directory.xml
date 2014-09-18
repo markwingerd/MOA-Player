@@ -1,0 +1,17 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+  xmlns:tools="http://schemas.android.com/tools"
+  android:layout_width="fill_parent"
+  android:layout_height="wrap_content"
+  android:onClick="directoryPicked"
+  android:orientation="vertical"
+  android:padding="5dp"
+  android:background="@drawable/list_item_selector" >
+ 
+  <TextView
+    android:id="@+id/directory_name"
+    android:layout_width="fill_parent"
+    android:layout_height="wrap_content"
+    android:textSize="20sp"
+    android:textStyle="bold" />
+ 
+</LinearLayout>

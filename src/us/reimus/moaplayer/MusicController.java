@@ -3,10 +3,11 @@ package us.reimus.moaplayer;
 import android.content.Context;
 import android.widget.MediaController;
 
-public class MusicController extends MediaController {
+public class MusicController extends MediaController {	
 	public MusicController(Context c) {
 	    super(c);
 	}
 	 
-	public void hide() {}
+	public void hide() {
+	}
 }
